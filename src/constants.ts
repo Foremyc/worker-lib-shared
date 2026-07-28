@@ -64,9 +64,15 @@ export const BUFFER = {
 export const DEVICE_MONITOR = {
   expectedPacketIntervalH: 1,
   offlineMissedPackets: 4,
+  /** Margine per lo slittamento del ciclo di deep sleep di TERRAE (non a cadenza fissa) — vedi Q&A → W7, risposto con "tolleranza di 1h". */
+  offlineToleranceH: 1,
   /** expectedPacketIntervalH * offlineMissedPackets */
   get offlineAfterH(): number {
     return DEVICE_MONITOR.expectedPacketIntervalH * DEVICE_MONITOR.offlineMissedPackets;
+  },
+  /** offlineAfterH + offlineToleranceH — soglia effettiva usata da W7 per decidere l'offline. */
+  get offlineThresholdH(): number {
+    return DEVICE_MONITOR.offlineAfterH + DEVICE_MONITOR.offlineToleranceH;
   },
 } as const;
 

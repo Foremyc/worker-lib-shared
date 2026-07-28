@@ -17,6 +17,10 @@ describe("valori di riferimento dalla specifica (doc/05-insect-pressure-index.md
   it("offline_after_h = 4 (1h di cadenza attesa x 4 pacchetti mancanti)", () => {
     expect(DEVICE_MONITOR.offlineAfterH).toBe(4);
   });
+
+  it("offline_threshold_h = 5 (offline_after_h + 1h di tolleranza sullo slittamento del deep sleep)", () => {
+    expect(DEVICE_MONITOR.offlineThresholdH).toBe(5);
+  });
 });
 
 describe("indexClassFor", () => {
