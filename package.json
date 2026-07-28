@@ -1,0 +1,21 @@
+{
+  "name": "foremyc-shared-worker-lib",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Costanti condivise, finestre stagionali ed helper per il registro eventi, usati da tutti i worker di calcolo (W1-W7) dell'Insect Pressure Index.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.4"
+  }
+}
