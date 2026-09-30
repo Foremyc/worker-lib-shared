@@ -2,7 +2,7 @@
 
 Pacchetto interno condiviso da tutti i worker di calcolo (W1–W7): costanti fisse dell'Insect Pressure Index, helper per le finestre stagionali, helper per il registro eventi. Non contiene formule dei worker — solo ciò che sarebbe altrimenti ricopiato in ogni repo.
 
-Riferimento: [`../doc/05-insect-pressure-index.md`](../doc/05-insect-pressure-index.md) (costanti), [`../doc/06-conventions.md`](../doc/06-conventions.md) (contratto dei worker), [`../doc/03-database.md`](../doc/03-database.md) (registro eventi).
+Riferimento: [Insect Pressure Index](../wiki/03-workers/insect-pressure-index.md) (costanti), [Convenzioni di sviluppo](../wiki/05-workflow/convenzioni.md) (contratto dei worker), [Schema Supabase](../wiki/04-database/schema-supabase.md) (registro eventi).
 
 ## Contenuto
 
