@@ -77,8 +77,10 @@ export const DEVICE_MONITOR = {
 } as const;
 
 export const WEATHER = {
-  terraeDailySamplesExpected: 24,
-  terraeMinCoverageRatio: 0.5,
+  terraeLocalTimeZone: "Europe/Rome",
+  terraeBandCentersLocalHour: [6, 9, 12, 15, 18, 21],
+  terraeMinimumBands: 5,
+  terraeRequiredMiddayBands: [12, 15],
 } as const;
 
 /** Pesi della combinazione finale (W6). La somma resta 1 in entrambi i casi. */
