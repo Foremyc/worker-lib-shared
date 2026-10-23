@@ -12,6 +12,33 @@ function fakeSupabase() {
 }
 
 describe("withWorkerRun error details", () => {
+  it("runs the worker when heartbeat insertion rejects", async () => {
+    const { client, query } = fakeSupabase();
+    query.single.mockRejectedValue(new Error("network down"));
+    const fn = vi.fn().mockResolvedValue({ ok: true });
+    await expect(withWorkerRun(client, "w1", "cron", fn)).resolves.toEqual({ ok: true });
+    expect(fn).toHaveBeenCalledOnce();
+    expect(query.update).not.toHaveBeenCalled();
+  });
+
+  it("preserves the worker error when heartbeat update rejects", async () => {
+    const { client, query } = fakeSupabase();
+    query.eq.mockRejectedValue(new Error("network down"));
+    const original = new Error("effis temporary failure");
+    await expect(withWorkerRun(client, "w8_effis", "cron", async () => { throw original; }))
+      .rejects.toBe(original);
+    expect(query.update).toHaveBeenCalledWith(expect.objectContaining({ status: "error" }));
+  });
+
+  it("marks fallback-only acquisition results as skipped without dropping their details", async () => {
+    const { client, query } = fakeSupabase();
+    const result = { processed: 3, reused: 2, stale: 1, missing: 0, acquisition_skipped: "critical_blocked" };
+    await expect(withWorkerRun(client, "w8_effis", "cron", async () => result)).resolves.toBe(result);
+    expect(query.update).toHaveBeenCalledWith(expect.objectContaining({
+      status: "skipped", detail: result,
+    }));
+  });
+
   it("stores extracted structured details while keeping other runs compatible", async () => {
     const { client, query } = fakeSupabase();
     const failure = Object.assign(new Error("w8_provider_error"), { code: "http_5xx", attempt: 2 });
