@@ -23,11 +23,16 @@ function isSkippedResult(result: unknown): result is SkippedResult {
  * Un errore nella scrittura dell'heartbeat non deve mai far fallire il
  * worker: si logga e si prosegue, stessa filosofia di logEvent.
  */
+export interface WorkerRunOptions {
+  errorDetails?: (error: unknown) => Record<string, unknown>;
+}
+
 export async function withWorkerRun<T>(
   supabase: SupabaseClient,
   worker: string,
   trigger: WorkerRunTrigger,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
+  options: WorkerRunOptions = {}
 ): Promise<T> {
   const { data: inserted, error: insertError } = await supabase
     .from("worker_runs")
@@ -45,7 +50,14 @@ export async function withWorkerRun<T>(
     await finishRun(supabase, runId, isSkippedResult(result) ? "skipped" : "ok", result);
     return result;
   } catch (err) {
-    await finishRun(supabase, runId, "error", { error: err instanceof Error ? err.message : String(err) });
+    let detail: Record<string, unknown>;
+    try {
+      detail = options.errorDetails?.(err) ?? { error: err instanceof Error ? err.message : String(err) };
+    } catch (detailError) {
+      console.error("withWorkerRun: error detail extraction failed", worker, detailError);
+      detail = { error: "error_detail_failed" };
+    }
+    await finishRun(supabase, runId, "error", detail);
     throw err;
   }
 }
