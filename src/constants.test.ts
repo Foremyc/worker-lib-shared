@@ -39,3 +39,14 @@ describe("indexClassFor", () => {
     expect(indexClassFor(value)).toBe(expected);
   });
 });
+
+describe("compatibilità WEATHER", () => {
+  it("mantiene il criterio usato dal W2 storico insieme alla nuova copertura", async () => {
+    const { WEATHER } = await import("./constants");
+    expect(WEATHER.terraeDailySamplesExpected).toBe(24);
+    expect(WEATHER.terraeMinCoverageRatio).toBe(0.5);
+    expect(WEATHER.terraeBandCentersLocalHour).toEqual([6, 9, 12, 15, 18, 21]);
+    expect(WEATHER.terraeMinimumBands).toBe(5);
+    expect(WEATHER.terraeRequiredMiddayBands).toEqual([12, 15]);
+  });
+});
