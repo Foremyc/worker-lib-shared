@@ -9,8 +9,15 @@ interface SkippedResult {
   reason: string;
 }
 
-function isSkippedResult(result: unknown): result is SkippedResult {
-  return !!result && typeof result === "object" && (result as { skipped?: unknown }).skipped === true;
+interface AcquisitionSkippedResult {
+  acquisition_skipped: string;
+}
+
+function isSkippedResult(result: unknown): result is SkippedResult | AcquisitionSkippedResult {
+  if (!result || typeof result !== "object") return false;
+  const value = result as { skipped?: unknown; acquisition_skipped?: unknown };
+  return value.skipped === true ||
+    (typeof value.acquisition_skipped === "string" && value.acquisition_skipped.length > 0);
 }
 
 /**
@@ -23,29 +30,46 @@ function isSkippedResult(result: unknown): result is SkippedResult {
  * Un errore nella scrittura dell'heartbeat non deve mai far fallire il
  * worker: si logga e si prosegue, stessa filosofia di logEvent.
  */
+export interface WorkerRunOptions {
+  errorDetails?: (error: unknown) => Record<string, unknown>;
+}
+
 export async function withWorkerRun<T>(
   supabase: SupabaseClient,
   worker: string,
   trigger: WorkerRunTrigger,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
+  options: WorkerRunOptions = {}
 ): Promise<T> {
-  const { data: inserted, error: insertError } = await supabase
-    .from("worker_runs")
-    .insert({ worker, trigger, started_at: new Date().toISOString() })
-    .select("id")
-    .single();
+  let runId: number | undefined;
+  try {
+    const { data: inserted, error: insertError } = await supabase
+      .from("worker_runs")
+      .insert({ worker, trigger, started_at: new Date().toISOString() })
+      .select("id")
+      .single();
 
-  if (insertError) {
-    console.error("withWorkerRun: insert failed", worker, insertError);
+    if (insertError) {
+      console.error("withWorkerRun: insert failed", worker, insertError);
+    }
+    runId = inserted?.id as number | undefined;
+  } catch (error) {
+    console.error("withWorkerRun: insert rejected", worker, error);
   }
-  const runId = inserted?.id as number | undefined;
 
   try {
     const result = await fn();
     await finishRun(supabase, runId, isSkippedResult(result) ? "skipped" : "ok", result);
     return result;
   } catch (err) {
-    await finishRun(supabase, runId, "error", { error: err instanceof Error ? err.message : String(err) });
+    let detail: Record<string, unknown>;
+    try {
+      detail = options.errorDetails?.(err) ?? { error: err instanceof Error ? err.message : String(err) };
+    } catch (detailError) {
+      console.error("withWorkerRun: error detail extraction failed", worker, detailError);
+      detail = { error: "error_detail_failed" };
+    }
+    await finishRun(supabase, runId, "error", detail);
     throw err;
   }
 }
@@ -57,11 +81,15 @@ async function finishRun(
   detail: unknown
 ): Promise<void> {
   if (runId === undefined) return; // l'insert iniziale è già fallito, niente da aggiornare
-  const { error } = await supabase
-    .from("worker_runs")
-    .update({ finished_at: new Date().toISOString(), status, detail: detail ?? {} })
-    .eq("id", runId);
-  if (error) {
-    console.error("withWorkerRun: update failed", runId, error);
+  try {
+    const { error } = await supabase
+      .from("worker_runs")
+      .update({ finished_at: new Date().toISOString(), status, detail: detail ?? {} })
+      .eq("id", runId);
+    if (error) {
+      console.error("withWorkerRun: update failed", runId, error);
+    }
+  } catch (error) {
+    console.error("withWorkerRun: update rejected", runId, error);
   }
 }
