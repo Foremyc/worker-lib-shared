@@ -27,9 +27,17 @@ function isSkippedResult(result: unknown): result is SkippedResult | Acquisition
  * dashboard clienti, questo è telemetria interna per
  * software-backoffice-console. Vedi doc/07-backoffice-console.md.
  *
+ * `fn` riceve `{ runId }` (undefined se l'insert è fallito) da passare a
+ * `reportSteps`. Il riepilogo standard in `detail` è `summarizeSteps(...)`
+ * unito ai campi già restituiti da `fn`.
+ *
  * Un errore nella scrittura dell'heartbeat non deve mai far fallire il
  * worker: si logga e si prosegue, stessa filosofia di logEvent.
  */
+export interface WorkerRunContext {
+  runId?: number;
+}
+
 export interface WorkerRunOptions {
   errorDetails?: (error: unknown) => Record<string, unknown>;
 }
@@ -38,7 +46,7 @@ export async function withWorkerRun<T>(
   supabase: SupabaseClient,
   worker: string,
   trigger: WorkerRunTrigger,
-  fn: () => Promise<T>,
+  fn: (ctx: WorkerRunContext) => Promise<T>,
   options: WorkerRunOptions = {}
 ): Promise<T> {
   let runId: number | undefined;
@@ -58,7 +66,7 @@ export async function withWorkerRun<T>(
   }
 
   try {
-    const result = await fn();
+    const result = await fn({ runId });
     await finishRun(supabase, runId, isSkippedResult(result) ? "skipped" : "ok", result);
     return result;
   } catch (err) {
