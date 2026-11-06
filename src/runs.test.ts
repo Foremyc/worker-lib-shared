@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { withWorkerRun } from "./runs";
+import { reportSteps } from "./status";
 
 function fakeSupabase() {
   const query: Record<string, any> = {};
@@ -57,5 +58,24 @@ describe("withWorkerRun error details", () => {
     expect(query.update).toHaveBeenCalledWith(expect.objectContaining({
       status: "error", detail: { error: "old-error" },
     }));
+  });
+
+  it("passes the inserted run id to fn", async () => {
+    const { client } = fakeSupabase();
+    const fn = vi.fn().mockResolvedValue({ ok: true });
+    await withWorkerRun(client, "w1", "cron", fn);
+    expect(fn).toHaveBeenCalledWith({ runId: 7 });
+  });
+
+  it("closes the run ok when reportSteps upsert is rejected inside fn", async () => {
+    const { client, query } = fakeSupabase();
+    query.upsert = vi.fn().mockRejectedValue(new Error("network down"));
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(withWorkerRun(client, "w1", "cron", async ({ runId }) => {
+      await reportSteps(client, "w1", runId, [{ serial: "S", step: "x", state: "ok" }]);
+      return { done: true };
+    })).resolves.toEqual({ done: true });
+    expect(query.update).toHaveBeenCalledWith(expect.objectContaining({ status: "ok" }));
+    err.mockRestore();
   });
 });
