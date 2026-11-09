@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { eseguiRilanci, erroreRilancio, passoSconosciuto } from "./rilanci";
+import { PASSATO_AL_CONTAINER, eseguiRilanci, erroreRilancio, giaInCorso, passoSconosciuto } from "./rilanci";
 
 function fakeSupabase(presi: unknown[] | Error) {
   const update = vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) }));
@@ -13,17 +13,25 @@ describe("eseguiRilanci", () => {
       { id: 1, step: "fire_risk", serial: "TERRAE-102" },
       { id: 2, step: "boh", serial: null },
       { id: 3, step: "fire_risk", serial: null },
+      { id: 4, step: "storico", serial: null },
+      { id: 5, step: "storico", serial: null },
     ]);
     const esegui = vi.fn(async (r: { step: string; serial: string | null }) => {
       if (r.step === "boh") throw passoSconosciuto();
+      if (r.step === "storico") {
+        if (esegui.mock.calls.length > 4) throw giaInCorso();
+        return PASSATO_AL_CONTAINER;
+      }
       if (!r.serial) throw new Error("testo libero con dettagli");
     });
-    await expect(eseguiRilanci(client, "w11_fire_risk", esegui)).resolves.toBe(3);
+    await expect(eseguiRilanci(client, "w11_fire_risk", esegui)).resolves.toBe(5);
     expect(rpc).toHaveBeenCalledWith("prendi_rilanci", { p_worker: "w11_fire_risk" });
     expect(update.mock.calls.map((c: any[]) => [c[0].state, c[0].error_code])).toEqual([
       ["fatto", null],
       ["fallito", "passo_sconosciuto"],
       ["fallito", "internal_error"],
+      ["fatto", "passato_al_container"],
+      ["fallito", "gia_in_corso"],
     ]);
   });
 

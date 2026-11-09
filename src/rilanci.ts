@@ -22,6 +22,16 @@ export function erroreRilancio(code: string): Error & { code: string } {
   return Object.assign(new Error(code), { code });
 }
 
+/**
+ * Da restituire in `esegui` quando il worker ha solo consegnato il lavoro al suo container o
+ * coordinatore (W2 CDS, W3, W5 storico, W10 SPEI): la richiesta finisce `fatto` con questo codice,
+ * perché il lavoro vero continua a parte e può durare ore.
+ */
+export const PASSATO_AL_CONTAINER = "passato_al_container";
+
+/** Il container o il coordinatore sta già facendo questo lavoro: un secondo avvio è stato rifiutato. */
+export const giaInCorso = () => erroreRilancio("gia_in_corso");
+
 /** Il worker non sa rilanciare quel passo (o non su una TERRAE sola). */
 export const passoSconosciuto = () => erroreRilancio("passo_sconosciuto");
 
@@ -34,7 +44,8 @@ function codice(err: unknown): string {
  * Prende le richieste in coda per `worker` (le segna in corso nel database, una volta sola
  * anche se due cron si accavallano) e le esegue una alla volta con `esegui`. Ognuna finisce
  * `fatto` o `fallito` col codice dell'errore. Non lancia mai: un rilancio rotto non deve
- * far fallire il cron. Restituisce quante richieste ha preso.
+ * far fallire il cron. Se `esegui` restituisce `PASSATO_AL_CONTAINER` la richiesta finisce `fatto`
+ * con quel codice. Restituisce quante richieste ha preso.
  */
 export async function eseguiRilanci(
   supabase: SupabaseClient,
@@ -53,7 +64,7 @@ export async function eseguiRilanci(
   for (const r of presi) {
     let esito: { state: "fatto" | "fallito"; error_code: string | null } = { state: "fatto", error_code: null };
     try {
-      await esegui(r);
+      if ((await esegui(r)) === PASSATO_AL_CONTAINER) esito = { state: "fatto", error_code: PASSATO_AL_CONTAINER };
     } catch (err) {
       console.error("eseguiRilanci: rilancio fallito", worker, r.step, r.serial, err);
       esito = { state: "fallito", error_code: codice(err) };
