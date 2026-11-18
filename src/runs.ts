@@ -24,8 +24,8 @@ function isSkippedResult(result: unknown): result is SkippedResult | Acquisition
  * Avvolge l'esecuzione di un worker (runOnce) e registra il run in
  * `worker_runs`: una riga ad ogni esecuzione, da cron o da `POST /run`
  * manuale. Non è un evento di `events` — quello è il registro visibile in
- * dashboard clienti, questo è telemetria interna per
- * software-backoffice-console. Vedi doc/07-backoffice-console.md.
+ * dashboard clienti, questo è telemetria interna letta dalla pagina Salute
+ * della dashboard (Amministrazione → Salute). Vedi wiki/09-dashboard/README.md.
  *
  * `fn` riceve `{ runId }` (undefined se l'insert è fallito) da passare a
  * `reportSteps`. Il riepilogo standard in `detail` è `summarizeSteps(...)`
